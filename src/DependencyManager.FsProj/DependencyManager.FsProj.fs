@@ -3,10 +3,9 @@
 open System
 open System.Diagnostics
 open System.IO
-open Ionide.ProjInfo
-open Ionide.ProjInfo.Types
-open Ionide.ProjInfo.ProjectSystem
+open System.Xml.Linq
 open Extensions
+open DotnetExe
 
 /// A marker attribute to tell FCS that this assembly contains a Dependency Manager, or
 /// that a class with the attribute is a DependencyManager
@@ -44,64 +43,50 @@ type ResolveDependenciesResult (success: bool, stdOut: string array, stdError: s
     member _.Roots = roots
 
 module FsProjDependencyManager =
-    let loadProjects baseDir (projects: string list) =
-        let dotnetExe, sdk = DirectoryInfo baseDir |> SdkSetup.getSdkFor
-        let toolsPath = SdkSetup.setupForSdk (dotnetExe, sdk)
-        let loader : IWorkspaceLoader =  WorkspaceLoader.Create toolsPath
-        projects |> List.iter (DotNet.restore dotnetExe)
-        loader.LoadProjects projects |> List.ofSeq
 
-    let sortByDependencies (projs: ProjectOptions list) =
-        let map = projs |> List.map (fun p -> p.ProjectFileName, p) |> Map.ofList
-        let edges =
-            projs
-            |> List.map (fun p -> p.ProjectFileName, p.ReferencedProjects |> List.map (fun pr -> pr.ProjectFileName))
+    let withAllProjectDependencies projects =
+        let rec loop (depProjs: string list) (toProcess: string list) =
+            match toProcess with
+            | [] -> depProjs
+            | projPath :: rest ->
+                let dotnetExe = DotnetExe(projPath)
+                let newProjs =
+                    dotnetExe.ListReferences()
+                    |> fun newProjs -> newProjs |> List.filter (fun p -> depProjs |> List.contains p |> not)
+                loop (List.append depProjs newProjs |> List.distinct) (List.append rest newProjs |> List.distinct)
+        loop projects projects
 
-        let rec loop sorted toSort =
-            match toSort |> List.partition (snd >> List.isEmpty) with
-            | [], [] -> sorted
-            | [], _ -> failwith "Cycle found"
-            | noDeps, withDeps ->
-                let projsNoDeps = noDeps |> List.map fst
-                let sorted' = sorted @ projsNoDeps
-                let removeDeps (p, deps) =
-                    p, deps |> List.filter (fun d -> not (projsNoDeps |> List.contains d))
-                let toSort' = 
-                    withDeps |> List.map removeDeps
-                loop sorted' toSort'
-        
-        loop [] edges
-        |> List.map (fun projName -> Map.find projName map)
+    let getSourceFilesForProject (projPath: string) =
+        let projDir = Path.GetDirectoryName projPath
+        let toAbsolutePath (projPath: string) =
+            if Path.IsPathRooted projPath then projPath else Path.GetFullPath (Path.Combine(projDir, projPath))
+        let doc = XDocument.Load(projPath)
+        doc.Descendants("Compile") 
+        |> Seq.map (fun node -> node.Attribute("Include").Value)
+        |> List.ofSeq
+        |> List.map toAbsolutePath
 
-    let getPackageReferences projects =
-        projects
-        |> List.collect (fun proj -> proj.PackageReferences)
-        |> List.map (fun pref -> pref.FullPath)
+    let getSourceFilesForProjects (projects: string list) =
+        projects 
+        |> List.collect getSourceFilesForProject
         |> List.distinct
 
-    let getSourceFiles projects =
-        projects
-        |> sortByDependencies 
-        |> List.collect (fun proj -> proj.SourceFiles) 
+    let getPackageReferencesForProjects (projects: string list) =
+        let packagesIncludedWithFsi =
+            [ "FSharp.Core"; "Microsoft.NETCore.Platforms"; "NETStandard.Library" ]
+        projects 
+        |> List.collect (fun proj -> DotnetExe(proj).ListPackages())
         |> List.distinct
+        |> List.filter (fun package -> packagesIncludedWithFsi |> List.contains package.Name |> not)
 
-    let toHashRLine package = "#r @\"" + package + "\""
-    let toLoadSourceLine sourceFile = "#load @\"" + sourceFile + "\""
+    let toNugetPackageReference (package: PackageInfo) =
+        $"""#r @"nuget: {package.Name}, {package.Version}" """
     
-    let getErrors (projects: ProjectOptions seq) =
-        let notRestored =
-            projects
-            |> Seq.filter (fun proj -> not proj.ProjectSdkInfo.RestoreSuccess)
-            |> Seq.map (fun proj -> proj.ProjectFileName)
-            
-        if not (Seq.isEmpty notRestored) then
-            notRestored
-            |> Seq.append ["Please restore following projects with 'dotnet restore': "]
-            |> Array.ofSeq
-        else [||]
+    let toLoadSourceLine sourceFile = 
+        $"""#load @"{sourceFile}" """
 
-[<DependencyManager>]
 /// the type _must_ take an optional output directory
+[<DependencyManager>]
 type FsProjDependencyManager(outputDirectory: string option) =
     let workingDirectory =
         // Calculate the working directory for dependency management
@@ -128,7 +113,7 @@ type FsProjDependencyManager(outputDirectory: string option) =
             File.WriteAllText(path, content)
         with _ -> ()
 
-    let generateDebugOutput scriptDir mainScriptName scriptName packageManagerTextLines targetFramework (projects: ProjectOptions seq) loadScriptContent =
+    let generateDebugOutput scriptDir mainScriptName scriptName targetFramework (projects: string list) loadScriptContent =
         [|
             $"================================"
             $"WorkingDirectory: {workingDirectory.Value}"
@@ -136,19 +121,19 @@ type FsProjDependencyManager(outputDirectory: string option) =
             $"MainScriptName: {mainScriptName}"
             $"ScriptName: {scriptName}"
             $"PackageManagerTextLines:"
-            for line in packageManagerTextLines do
-                $"  >{line}"
+            // for line in packageManagerTextLines do
+            //     $"  >{line}"
             $"TargetFramework: {targetFramework}"
             $"================================"
             $"All projects:"
             for proj in projects do
-                $" > {proj.ProjectFileName}: {proj.ProjectSdkInfo.TargetFramework} (IsRestored: {proj.ProjectSdkInfo.RestoreSuccess}, References: {proj.ReferencedProjects.Length})"
+                $" > {proj}"            
             $"Load script content:"
             $"--------------------------------"
             $"{loadScriptContent}"
             $"--------------------------------"
         |]
-    
+
     member val Key = "fsproj" with get
     member val Name = "FsProj Dependency Manager" with get
     member _.HelpMessages = [|
@@ -157,19 +142,27 @@ type FsProjDependencyManager(outputDirectory: string option) =
 
     member _.ResolveDependencies(scriptDir: string, mainScriptName: string, scriptName: string, packageManagerTextLines: HashRLines, targetFramework: TFM) : ResolveDependenciesResult =
         try
-            let projectPaths = 
+            let allProjects = 
                 packageManagerTextLines
                 |> List.ofSeq
                 |> List.map (fun line -> Path.Combine(scriptDir, line) |> Path.GetFullPath)
-            let projects = FsProjDependencyManager.loadProjects scriptDir projectPaths
-            let packageReferences = FsProjDependencyManager.getPackageReferences projects
-            let sourceFiles = FsProjDependencyManager.getSourceFiles projects
+                |> FsProjDependencyManager.withAllProjectDependencies
+            
+            let sourceFiles = 
+                FsProjDependencyManager.getSourceFilesForProjects allProjects
+                |> List.map FsProjDependencyManager.toLoadSourceLine
+            
+            let packageReferences = 
+                FsProjDependencyManager.getPackageReferencesForProjects allProjects
+                |> List.map FsProjDependencyManager.toNugetPackageReference
 
-            let stdError = FsProjDependencyManager.getErrors projects
-            //let output = generateDebugOutput scriptDir mainScriptName scriptName packageManagerTextLines targetFramework allProjects loadScriptContent
-            let output = [||]
-
-            ResolveDependenciesResult(true, output, stdError, packageReferences, sourceFiles, [])
+            let loadScriptContent = 
+                List.append packageReferences sourceFiles
+                |> String.concat Environment.NewLine
+            let loadScriptPath = Path.Combine(workingDirectory.Value, $"load-dependencies-{Path.GetFileName mainScriptName}")
+            emitFile loadScriptPath loadScriptContent
+            let output = generateDebugOutput scriptDir mainScriptName scriptName targetFramework allProjects loadScriptContent
+            ResolveDependenciesResult(true, [||], output, [||], [| loadScriptPath |], [])
         with e -> 
             printfn "exception while resolving dependencies: %s" (string e)
             ResolveDependenciesResult(false, [||], [| e.ToString() |], [], [], [])

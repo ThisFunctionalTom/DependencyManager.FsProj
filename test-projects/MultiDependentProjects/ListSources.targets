@@ -1,0 +1,9 @@
+<Project>
+  <Target Name="ListSources" AfterTargets="Build">
+    <!-- <ItemGroup>
+      <CompileSources Include="@(Compile)"/>
+    </ItemGroup>
+    <Message Importance="High" Text="%(CompileSources.FullPath)"/> -->
+    <Message Importance="High" Text="Hello, World!"/>
+  </Target>
+</Project>
