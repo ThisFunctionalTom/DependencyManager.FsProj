@@ -109,3 +109,7 @@ module Paths =
         |> Option.defaultWith (fun _ -> 
             failwith "No dotnet binary could be found via the DOTNET_HOST_PATH or DOTNET_ROOT environment variables, the PATH environment variable, or the default install locations")
 
+module Sha256 =
+    open System.Security.Cryptography
+    
+    let ofBytes (bytes: byte[]) : byte[] = SHA256.Create().ComputeHash(bytes)

@@ -4,6 +4,6 @@ $nupkg=".nupkg"
 $toolPath=".depman-fsproj"
 Remove-Item -Recurse -ErrorAction SilentlyContinue $nupkg
 Remove-Item -Recurse -ErrorAction SilentlyContinue $toolPath
-dotnet pack -o $nupkg
+dotnet pack .\src/depman-fsproj -o $nupkg
 dotnet tool install --tool-path $toolPath --add-source $nupkg --ignore-failed-sources --version $version depman-fsproj
 & $toolPath\depman-fsproj.exe

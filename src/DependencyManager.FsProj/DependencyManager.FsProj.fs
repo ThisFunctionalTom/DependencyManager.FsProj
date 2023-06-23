@@ -2,6 +2,7 @@
 
 open System
 open System.Diagnostics
+open System.Text
 open System.IO
 open System.Xml.Linq
 open Extensions
@@ -88,6 +89,11 @@ module FsProjDependencyManager =
 /// the type _must_ take an optional output directory
 [<DependencyManager>]
 type FsProjDependencyManager(outputDirectory: string option) =
+    let userProfile =
+        let res = Environment.GetEnvironmentVariable("USERPROFILE")
+        if System.String.IsNullOrEmpty res then
+            Environment.GetEnvironmentVariable("HOME")
+        else res
     let workingDirectory =
         // Calculate the working directory for dependency management
         //   if a path wasn't supplied to the dependency manager then use the temporary directory as the root
@@ -113,7 +119,25 @@ type FsProjDependencyManager(outputDirectory: string option) =
             File.WriteAllText(path, content)
         with _ -> ()
 
-    let generateDebugOutput scriptDir mainScriptName scriptName targetFramework (projects: string list) loadScriptContent =
+    let generateLoadScript loadScriptPath allProjects =
+        // let sourceFiles =
+        //     FsProjDependencyManager.getSourceFilesForProjects allProjects
+        // let loadLines =
+        //     sourceFiles 
+        //     |> List.map FsProjDependencyManager.toLoadSourceLine
+        let packages = 
+            FsProjDependencyManager.getPackageReferencesForProjects allProjects
+        let packageReferences = 
+            packages
+            |> List.map FsProjDependencyManager.toNugetPackageReference
+
+        let loadScriptContent = 
+            //List.append packageReferences loadLines
+            packageReferences
+            |> String.concat Environment.NewLine
+        emitFile loadScriptPath loadScriptContent
+
+    let generateDebugOutput scriptDir mainScriptName scriptName packageManagerTextLines targetFramework (projects: string list) outputScriptPath loadScriptContent =
         [|
             $"================================"
             $"WorkingDirectory: {workingDirectory.Value}"
@@ -121,18 +145,21 @@ type FsProjDependencyManager(outputDirectory: string option) =
             $"MainScriptName: {mainScriptName}"
             $"ScriptName: {scriptName}"
             $"PackageManagerTextLines:"
-            // for line in packageManagerTextLines do
-            //     $"  >{line}"
+            for line in packageManagerTextLines do
+                $"  >{line}"
             $"TargetFramework: {targetFramework}"
+            $"OutputScriptPath: {outputScriptPath}"
             $"================================"
-            $"All projects:"
-            for proj in projects do
-                $" > {proj}"            
-            $"Load script content:"
-            $"--------------------------------"
-            $"{loadScriptContent}"
-            $"--------------------------------"
+            // $"All projects:"
+            // for proj in projects do
+            //     $" > {proj}"            
+            // $"Load script content:"
+            // $"--------------------------------"
+            // $"{loadScriptContent}"
+            // $"--------------------------------"
         |]
+
+    let mutable generatedFile : string = null
 
     member val Key = "fsproj" with get
     member val Name = "FsProj Dependency Manager" with get
@@ -145,24 +172,76 @@ type FsProjDependencyManager(outputDirectory: string option) =
             let allProjects = 
                 packageManagerTextLines
                 |> List.ofSeq
+                |> List.distinct
                 |> List.map (fun line -> Path.Combine(scriptDir, line) |> Path.GetFullPath)
                 |> FsProjDependencyManager.withAllProjectDependencies
             
-            let sourceFiles = 
-                FsProjDependencyManager.getSourceFilesForProjects allProjects
-                |> List.map FsProjDependencyManager.toLoadSourceLine
+            let projWriteTimes =
+                allProjects
+                |> List.map (fun proj -> FileInfo(proj))
+                |> List.map (fun fi -> $"{fi.FullName}|{fi.LastWriteTimeUtc}")
             
-            let packageReferences = 
-                FsProjDependencyManager.getPackageReferencesForProjects allProjects
-                |> List.map FsProjDependencyManager.toNugetPackageReference
+            let loadScriptPath = 
+                let hash = 
+                    projWriteTimes 
+                    |> String.concat Environment.NewLine 
+                    |> Encoding.UTF8.GetBytes 
+                    |> Sha256.ofBytes
+                    |> Array.map (sprintf "%02x")
+                    |> String.concat ""
+                Path.Combine(workingDirectory.Value, $"load-dependencies-{Path.GetFileNameWithoutExtension mainScriptName}-{hash}.fsx")
 
-            let loadScriptContent = 
-                List.append packageReferences sourceFiles
-                |> String.concat Environment.NewLine
-            let loadScriptPath = Path.Combine(workingDirectory.Value, $"load-dependencies-{Path.GetFileName mainScriptName}")
-            emitFile loadScriptPath loadScriptContent
-            let output = generateDebugOutput scriptDir mainScriptName scriptName targetFramework allProjects loadScriptContent
-            ResolveDependenciesResult(true, [||], output, [||], [| loadScriptPath |], [])
+            let workdirFiles = Directory.GetFiles(workingDirectory.Value)
+            let fileInfo = FileInfo(loadScriptPath)
+
+            if generatedFile = loadScriptPath then
+                let output = 
+                    [|
+                        $"WorkingDir: {workingDirectory.Value}"
+                        $"Cached: {loadScriptPath}"
+                        $"LastWriteTime: {fileInfo.LastWriteTime}"
+                        $"MainScriptName: {mainScriptName}"
+                        $"ScriptName: {scriptName}"
+                        "LoadScript:"
+                        for line in File.ReadAllLines loadScriptPath do
+                            $"  >{line}"
+                    |]
+                ResolveDependenciesResult(true, output, [||], [], [ ], [])
+            else
+                let sourceFiles = 
+                    FsProjDependencyManager.getSourceFilesForProjects allProjects
+                    |> List.map FsProjDependencyManager.toLoadSourceLine
+                
+                let packageReferences = 
+                    FsProjDependencyManager.getPackageReferencesForProjects allProjects
+                    |> List.map FsProjDependencyManager.toNugetPackageReference
+
+                let loadScriptContent = 
+                    List.append packageReferences sourceFiles
+                    |> String.concat Environment.NewLine                    
+
+                emitFile loadScriptPath loadScriptContent
+                
+                let output = 
+                    [|
+                        $"WorkingDir: {workingDirectory.Value}"
+                        $"LastGeneratted: {generatedFile}"
+                        $"Generated: {loadScriptPath}"
+                        $"WorkingDirContents:"
+                        for file in workdirFiles do
+                            $"  >{file}"
+                        $"MainScriptName: {mainScriptName}"
+                        $"ScriptName: {scriptName}"
+                        "LoadScript:"
+                        for line in File.ReadAllLines loadScriptPath do
+                            $"  >{line}"
+                    |]
+
+                generatedFile <- loadScriptPath
+
+                //let output = generateDebugOutput scriptDir mainScriptName scriptName packageManagerTextLines targetFramework allProjects loadScriptPath loadScriptContent
+                //ResolveDependenciesResult(true, output, [||], [], [ loadScriptPath; yield! sourceFiles ], [])
+                ResolveDependenciesResult(true, output, [||], [], [ loadScriptPath ], [])
         with e -> 
             printfn "exception while resolving dependencies: %s" (string e)
             ResolveDependenciesResult(false, [||], [| e.ToString() |], [], [], [])
