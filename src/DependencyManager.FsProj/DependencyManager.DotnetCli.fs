@@ -1,12 +1,10 @@
-module DependencyManager.FsProj.DotnetExe
+namespace DependencyManager.FsProj
 
 open System
 open System.IO
 open System.Diagnostics
 
-open Extensions
-
-type PackageInfo = {
+type PackageReference = {
     Name: string
     Version: string
 }
@@ -28,10 +26,7 @@ type DotnetExe(projPath: string) =
         let info = ProcessStartInfo()
         info.WorkingDirectory <- projDir.FullName
         info.FileName <- dotnetExe.FullName
-
-        for arg in args do
-            info.ArgumentList.Add arg
-
+        info.Arguments <- args |> String.concat " "
         info.RedirectStandardOutput <- true
         info.RedirectStandardError <- true
         use p = System.Diagnostics.Process.Start(info)
@@ -56,36 +51,35 @@ type DotnetExe(projPath: string) =
 
     member this.ListPackages () =
         let listPackages() = 
-            execDotnet [ "list"; projFile; "package"; "--include-transitive"]
-        let parseTopLevelPackageInfo (line: string) =
-            let parts = line.Split(" ", StringSplitOptions.RemoveEmptyEntries)
+            execDotnet [ "list"; projFile; "package"]
+        let parseTopLevelPackageReference (line: string) =
+            let parts = line |> String.split [| ' ' |] |> Array.filter String.notEmptyOrWhiteSpace
             { Name = parts.[1]; Version = parts.[parts.Length-1] }
-        let parseTransitivePackageInfo (line: string) =
-            let parts = line.Split(" ", StringSplitOptions.RemoveEmptyEntries)
+        let parseTransitivePackageReference (line: string) =
+            let parts = line |> String.split [| ' ' |] |> Array.filter String.notEmptyOrWhiteSpace
             { Name = parts.[1]; Version = parts.[parts.Length-1] }
         let lines =
             let notRestored (lines: string[]) =
                 lines 
                 |> Array.exists (fun line -> line.Contains "Please run restore before running this command.") 
-            let lines = listPackages()
+            let lines = listPackages() |> Array.map String.trim
             if notRestored lines then
                 this.Restore() |> ignore
                 listPackages()
             else
                 lines
-            |> Array.map String.trim
         let topLevelStart = String.startsWith "Top-level Package"
         let transitiveStart = String.startsWith "Transitive Package"
         let packageLine = String.startsWith "> "
         let topLevelPackages =
             lines
             |> Lines.tryGetLines (topLevelStart, packageLine)
-            |> Option.map (Array.map parseTopLevelPackageInfo >> List.ofArray)
+            |> Option.map (Array.map parseTopLevelPackageReference >> List.ofArray)
             |> Option.defaultValue []
         let transitivePackages =
             lines
             |> Lines.tryGetLines (transitiveStart, packageLine)
-            |> Option.map (Array.map parseTransitivePackageInfo >> List.ofArray)
+            |> Option.map (Array.map parseTransitivePackageReference >> List.ofArray)
             |> Option.defaultValue []
         List.append topLevelPackages transitivePackages
 

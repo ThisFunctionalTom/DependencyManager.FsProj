@@ -1,16 +1,16 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <PackageId>DependencyManager.FsProj</PackageId>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
   <ItemGroup>
-    <Compile Include="Extensions.fs" />
-    <Compile Include="DotnetExe.fs" />
-    <Compile Include="DependencyManager.FsProj.fs" />
+      <Compile Include="DependencyManager.Utilities.fs" />
+      <Compile Include="DependencyManager.DotnetCli.fs" />
+      <Compile Include="DependencyManager.fsi" />
+      <Compile Include="DependencyManager.fs" />
+
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\docs\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
+
 </Project>

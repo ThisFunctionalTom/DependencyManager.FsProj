@@ -18,14 +18,9 @@ let showUsage () =
 let generateLoadScript (projectPaths: string []) =
     let currentDir = Directory.GetCurrentDirectory()
     let projectPaths = List.ofArray projectPaths |> List.map (fun path -> Path.Combine(currentDir, path) |> Path.GetFullPath)
-    let dotnetExe = Extensions.Paths.getDotnetRoot()
-    printfn $"ProjectPaths: {projectPaths}"
-    let projects = projectPaths |> FsProjDependencyManager.withAllProjectDependencies
-    printfn $"All projects: {projects.Length}"
+    let projects = FsProjDependencyManager.getAllDependentProjects projectPaths
     let packages = FsProjDependencyManager.getPackageReferencesForProjects projects
-    printfn $"Packages: {packages.Length}"
-    let sources = FsProjDependencyManager.getSourceFilesForProjects projects
-    printfn $"Sources: {sources.Length}"
+    let sources = projects |> List.collect FsProjDependencyManager.getSourceFilesForProject 
 
     List.concat [
         packages |> List.map FsProjDependencyManager.toNugetPackageReference
