@@ -26,13 +26,16 @@ or maybe
   ```pwsh
   dotnet tool install --global depman-fsproj
   ```
-  
 
 ## Known problems
 
+- Not working with .NET 7 and newest Ionide.ProjInfo
 - Deployment is still not simple
-- Upgrade to new .NET SDKs?
 - fsproj target framework and fsi framework missmatch  (FSharp.Core for example)
+
+## Decisions
+
+- 
 
 ## TODOs
 
