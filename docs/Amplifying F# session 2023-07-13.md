@@ -30,8 +30,22 @@ or maybe
 ## Known problems
 
 - Not working with .NET 7 and newest Ionide.ProjInfo
-- Deployment is still not simple
+- Version with "dotnet list package" reenters all the time. How to get logs from fsi?
+- Deployment is still not simple enough? Or is it?
 - fsproj target framework and fsi framework missmatch  (FSharp.Core for example)
+
+## Goal
+
+- Learn a lot about FSharp, FSharp.Compiler.Service, Ionide.ProjInfo, MsBuild...
+- Discuss different solution possibilities
+  - Ionide.ProjInfo
+  - dotnet list package, dotnet list reference
+  - Build project and reference dll
+- Discuss different deployment scenarios
+  - built into fsharp repo
+  - dotnet tool
+  - some other ideas?
+- Decide in which direction to go from here
 
 ## Decisions
 
