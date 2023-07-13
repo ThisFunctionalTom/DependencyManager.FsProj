@@ -9,6 +9,16 @@ or maybe
 ![Idea](DependencyManagerIdea2.drawio.svg)
 
 
+## History
+
+- [Original Project from Chris](https://github.com/ionide/DependencyManager.FsProj)
+- [Forked](https://github.com/ThisFunctionalTom/DependencyManager.FsProj)
+  - Deployment as [dotnet tool](https://www.nuget.org/packages/DependencyManager.FsProj/)
+  ```pwsh
+  dotnet tool install --global depman-fsproj
+  ```
+
+
 ## How F# DependencyManagers work?
 
 - [Interface](../../fsharp/src/FSharp.DependencyManager.Nuget/FSharp.DependencyManager.fsi)
@@ -18,14 +28,6 @@ or maybe
 - [Nuget](../../fsharp/src/FSharp.DependencyManager.Nuget/FSharp.DependencyManager.fs)
 - [Paket](../../Paket/src/FSharp.DependencyManager.Paket/PaketDependencyManager.fs)
 
-## History
-
-- [Original Project from Chris](https://github.com/ionide/DependencyManager.FsProj)
-- [Forked](https://github.com/ThisFunctionalTom/DependencyManager.FsProj)
-  - Deployment as [dotnet tool](https://www.nuget.org/packages/DependencyManager.FsProj/)
-  ```pwsh
-  dotnet tool install --global depman-fsproj
-  ```
 
 ## Known problems
 
