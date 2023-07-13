@@ -18,7 +18,7 @@ or maybe
 - [Nuget](../../fsharp/src/FSharp.DependencyManager.Nuget/FSharp.DependencyManager.fs)
 - [Paket](../../Paket/src/FSharp.DependencyManager.Paket/PaketDependencyManager.fs)
 
-## History of DependencyManager.FsProj
+## History
 
 - [Original Project from Chris](https://github.com/ionide/DependencyManager.FsProj)
 - [Forked](https://github.com/ThisFunctionalTom/DependencyManager.FsProj)

@@ -1,6 +1,6 @@
 #r "nuget: Ionide.ProjInfo"
 #r "nuget: Ionide.ProjInfo.ProjectSystem"
-#r "nuget: Ionide.ProjInfo.Sln"
+// #r "nuget: Ionide.ProjInfo.Sln"
 
 #load "src/DependencyManager.FsProj/Extensions.fs"
 #load "src/DependencyManager.FsProj/DependencyManager.FsProj.fs"
