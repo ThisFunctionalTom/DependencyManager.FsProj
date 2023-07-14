@@ -6,8 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\src\DependencyManager.FsProj\Extensions.fs" />
-    <Compile Include="..\src\DependencyManager.FsProj\DependencyManager.FsProj.fs" />
+    <!-- <Compile Include="..\src\DependencyManager.FsProj\Extensions.fs" />
+    <Compile Include="..\src\DependencyManager.FsProj\DependencyManager.FsProj.fs" /> -->
+    <Compile Include="ProjectLoader.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
