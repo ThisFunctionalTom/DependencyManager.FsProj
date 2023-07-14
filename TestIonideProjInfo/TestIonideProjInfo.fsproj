@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\src\DependencyManager.FsProj\Extensions.fs" />
+    <Compile Include="..\src\DependencyManager.FsProj\DependencyManager.FsProj.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ionide.ProjInfo" Version="0.61.3" />
+    <!-- <PackageReference Include="Ionide.ProjInfo.ProjectSystem" Version="0.61.3" /> -->
+    <!-- <PackageReference Include="Microsoft.Build.Framework" Version="17.4.0" /> -->
+    <!-- <PackageReference Include="NuGet.Frameworks" Version="6.2.1" /> -->
+  </ItemGroup>
+
+  <!-- <ItemGroup>
+    <ProjectReference Include="..\src\DependencyManager.FsProj\DependencyManager.FsProj.fsproj" />
+  </ItemGroup> -->
+
+</Project>

@@ -3,7 +3,6 @@ module Extensions
 open System
 open System.IO
 open Ionide.ProjInfo
-open Ionide.ProjInfo.Types
 
 type String with
     member path.EnsureTrailer =
@@ -36,20 +35,6 @@ module SdkSetup =
         resolveHandler <- resolveFromSdkRoot sdkRoot
         AssemblyLoadContext.Default.add_Resolving resolveHandler
 
-    let setupForSdk ((dotnetExe: FileInfo), (sdk: SdkDiscovery.DotnetSdkInfo)) =
-        let sdkRoot = sdk.Path
-        let msbuild = System.IO.Path.Combine(sdkRoot.FullName, "MSBuild.dll")
-        Environment.SetEnvironmentVariable("MSBUILD_EXE_PATH", msbuild)
-        Environment.SetEnvironmentVariable("MSBuildExtensionsPath", sdkRoot.FullName.EnsureTrailer)
-        Environment.SetEnvironmentVariable("MSBuildSDKsPath", Path.Combine(sdkRoot.FullName, "Sdks"))
-        // .net 6 sdk includes workload stuff and this breaks for some reason
-        Environment.SetEnvironmentVariable("MSBuildEnableWorkloadResolver", "false")
-        match System.Environment.GetEnvironmentVariable "DOTNET_HOST_PATH" with
-        | null
-        | "" -> Environment.SetEnvironmentVariable("DOTNET_HOST_PATH", dotnetExe.FullName)
-        | _alreadySet -> ()
-        setupResolveHandler sdkRoot
-        ToolsPath msbuild
 
     let getSdkFor (dir: DirectoryInfo) =
         match Paths.dotnetRoot.Value with

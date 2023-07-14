@@ -3,8 +3,8 @@ open System.IO
 open DependencyManager.FsProj
 
 let showUsage () =
-    let installDir = 
-        typeof<DependencyManager.FsProj.FsProjDependencyManager>.Assembly.Location 
+    let installDir =
+        typeof<DependencyManager.FsProj.FsProjDependencyManager>.Assembly.Location
         |> System.IO.Path.GetDirectoryName
     let jsonFriendlyInstallDir = installDir.Replace("\\", "/")
     printfn "To use with fsi run: "
@@ -18,13 +18,12 @@ let showUsage () =
 let generateLoadScript (projectPaths: string []) =
     let currentDir = Directory.GetCurrentDirectory()
     let projectPaths = List.ofArray projectPaths |> List.map (fun path -> Path.Combine(currentDir, path) |> Path.GetFullPath)
-    printfn $"ProjectPaths: {projectPaths}"
-    let projects = FsProjDependencyManager.loadProjects currentDir projectPaths
-    printfn $"Projects: {projects.Length}"
+    let projects, notifications = FsProjDependencyManager.loadProjects currentDir projectPaths
     let packages = FsProjDependencyManager.getPackageReferences projects
-    printfn $"Packages: {packages.Length}"
     let sources = FsProjDependencyManager.getSourceFiles projects
-    printfn $"Sources: {sources.Length}"
+
+    for n in notifications do
+        Console.Error.WriteLine n
 
     List.concat [
         packages |> List.map FsProjDependencyManager.toHashRLine
@@ -35,7 +34,7 @@ let generateLoadScript (projectPaths: string []) =
 
 [<EntryPoint>]
 let main argv =
-    if Array.isEmpty argv 
+    if Array.isEmpty argv
     then showUsage ()
     else generateLoadScript argv
     0

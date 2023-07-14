@@ -1,5 +1,5 @@
-#r "nuget: Ionide.ProjInfo, 0.55.4"
-#r "nuget: Ionide.ProjInfo.ProjectSystem, 0.55.4"
+#r "nuget: Ionide.ProjInfo"
+#r "nuget: Ionide.ProjInfo.ProjectSystem"
 
 #load "../src/Extensions.fs"
 #load "../src/DependencyManager.FsProj.fs"
