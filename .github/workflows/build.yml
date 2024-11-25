@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet tool restore; dotnet restore
     - name: Build
@@ -30,15 +30,15 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 9.0.x
     - name: Restore tools
       run: dotnet tool restore
     - name: Publish depman-fsproj
-      uses: brandedoutcast/publish-nuget@v2.5.2
+      uses: brandedoutcast/publish-nuget@v2
       with:
           PROJECT_FILE_PATH: src/DependencyManager.FsProj/DependencyManager.FsProj.fsproj
           VERSION_FILE_PATH: ./Directory.Build.props
